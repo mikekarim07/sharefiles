@@ -55,4 +55,4 @@ if uploaded_file:
 
     # Mensaje de éxito
     st.success("✅ Archivo subido correctamente a Google Drive.")
-    st.markdown(f"🔗 [Ver archivo en Drive]({uploaded['webViewLink']})")
+    # st.markdown(f"🔗 [Ver archivo en Drive]({uploaded['webViewLink']})")
