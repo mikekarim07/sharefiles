@@ -6,7 +6,7 @@ import tempfile
 import os
 
 # 📂 Reemplaza por el ID de tu carpeta en Google Drive
-FOLDER_ID = "TU_FOLDER_ID_AQUI"
+FOLDER_ID = "10ZQjPf5cmva2uUqpSG8QR1uznGVnaL4O"
 
 @st.cache_resource
 def get_drive_service():
