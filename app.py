@@ -8,7 +8,7 @@ import os
 # 📂 Reemplaza por el ID de tu carpeta en Google Drive
 FOLDER_ID = "10ZQjPf5cmva2uUqpSG8QR1uznGVnaL4O"
 
-st.write(st.secrets)
+# st.write(st.secrets)
 
 
 
