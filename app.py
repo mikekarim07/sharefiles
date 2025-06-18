@@ -28,7 +28,7 @@ st.title("📤 Cargar archivo Excel a Google Drive")
 
 uploaded_file = st.file_uploader(
     "Selecciona un archivo", 
-    type=["xlsx", "xls", "csv", "txt"]
+    type=["xlsx", "xls", "csv", "txt", "zip"]
 )
 
 
