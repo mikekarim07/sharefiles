@@ -4,6 +4,8 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import tempfile
 import os
+from googleapiclient.http import MediaIoBaseUpload
+import io
 
 # 🟡 Reemplaza esto con el ID de tu carpeta en Google Drive
 FOLDER_ID = "10ZQjPf5cmva2uUqpSG8QR1uznGVnaL4O"
@@ -42,11 +44,17 @@ if uploaded_file:
         "parents": [FOLDER_ID]
     }
 
-    media = MediaFileUpload(
-        temp_path,
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    # media = MediaFileUpload(
+    #     temp_path,
+    #     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    # )
+    # Modificacion vs lineas anteriores
+    media = MediaIoBaseUpload(
+    io.FileIO(temp_path, 'rb'),
+    mimetype="application/octet-stream",
+    resumable=True
     )
-
+    
     # Subir archivo a Google Drive
     uploaded = drive_service.files().create(
         body=file_metadata,
