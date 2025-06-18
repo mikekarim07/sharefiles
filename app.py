@@ -24,7 +24,11 @@ drive_service = get_drive_service()
 # =============================
 st.title("📤 Cargar archivo Excel a Google Drive")
 
-uploaded_file = st.file_uploader("Selecciona un archivo Excel", type=["xlsx", "xls"])
+uploaded_file = st.file_uploader(
+    "Selecciona un archivo", 
+    type=["xlsx", "xls", "csv", "txt"]
+)
+
 
 if uploaded_file:
     # Crear archivo temporal
