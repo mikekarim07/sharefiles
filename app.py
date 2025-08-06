@@ -151,7 +151,7 @@ import tempfile
 import os
 
 # Configuración
-FOLDER_ID = "TU_ID_DE_CARPETA_AQUI"  # Reemplaza con el ID de tu carpeta en la unidad compartida
+FOLDER_ID = "10ZQjPf5cmva2uUqpSG8QR1uznGVnaL4O"  # Reemplaza con el ID de tu carpeta en la unidad compartida
 
 # Conexión con Google Drive
 @st.cache_resource
