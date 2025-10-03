@@ -17,14 +17,23 @@ BUCKET_NAME = "mars"
 st.title("🚀 Subir Archivos Seguros a Supabase")
 st.write("Sube tus archivos aquí (máx. ~40MB). Una vez cargados, verás la lista abajo para confirmar qué se ha subido.")
 
-# Verificar conexión a Supabase y existencia del bucket
+# Verificar conexión a Supabase y listar buckets disponibles
 try:
-    # Listar buckets para verificar conexión
+    # Listar buckets
     buckets = supabase.storage.list_buckets()
-    bucket_exists = any(bucket["name"] == BUCKET_NAME for bucket in buckets)
+    bucket_names = [bucket["name"] for bucket in buckets]
     
-    if not bucket_exists:
-        st.error(f"❌ El bucket '{BUCKET_NAME}' no existe en Supabase. Créalo en el dashboard de Supabase o verifica el nombre.")
+    if not bucket_names:
+        st.error("❌ No se encontraron buckets en Supabase. Crea un bucket en el dashboard.")
+        st.markdown(f"[Ir a Supabase Storage](https://supabase.com/dashboard/project/{SUPABASE_URL.split('//')[1].split('.')[0]}/storage/buckets)")
+        st.stop()
+    
+    # Mostrar buckets disponibles
+    st.info(f"🪣 Buckets disponibles en Supabase: {', '.join(bucket_names)}")
+    
+    # Verificar si el bucket 'uploads' existe
+    if BUCKET_NAME not in bucket_names:
+        st.error(f"❌ El bucket '{BUCKET_NAME}' no existe. Crea el bucket '{BUCKET_NAME}' o usa uno de los buckets disponibles: {', '.join(bucket_names)}")
         st.markdown(f"[Ir a Supabase Storage](https://supabase.com/dashboard/project/{SUPABASE_URL.split('//')[1].split('.')[0]}/storage/buckets)")
         st.stop()
     
@@ -56,15 +65,18 @@ if uploaded_files:
                         st.error(f"❌ {uploaded_file.name} excede el límite de 50MB ({file_size_mb:.2f}MB).")
                         continue
 
+                    # Sanitizar nombre del archivo (reemplazar espacios y caracteres especiales)
+                    safe_file_name = uploaded_file.name.replace(" ", "_").replace("%", "_").replace("&", "_")
+                    
                     # Usar directorio temporal seguro
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=uploaded_file.name) as tmp_file:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=safe_file_name) as tmp_file:
                         tmp_file.write(uploaded_file.getbuffer())
                         tmp_file_path = tmp_file.name
 
                     # Subir a Supabase Storage
                     with open(tmp_file_path, "rb") as f:
                         res = supabase.storage.from_(BUCKET_NAME).upload(
-                            path=uploaded_file.name,
+                            path=safe_file_name,
                             file=f,
                             file_options={"content-type": uploaded_file.type}
                         )
@@ -74,15 +86,15 @@ if uploaded_files:
 
                     # Verificar respuesta
                     if res.status_code in [200, 201]:
-                        st.success(f"✅ {uploaded_file.name} subido correctamente.")
+                        st.success(f"✅ {safe_file_name} subido correctamente.")
                     else:
                         try:
                             error_details = res.json()
                         except json.JSONDecodeError as json_err:
                             error_details = f"No se pudo parsear la respuesta del servidor: {res.text or 'Respuesta vacía'} (JSON Error: {str(json_err)})"
-                        st.error(f"❌ Error subiendo {uploaded_file.name}: Código {res.status_code}, Detalles: {error_details}")
+                        st.error(f"❌ Error subiendo {safe_file_name}: Código {res.status_code}, Detalles: {error_details}")
                 except Exception as e:
-                    st.error(f"❌ Error procesando {uploaded_file.name}: {str(e)}")
+                    st.error(f"❌ Error procesando {safe_file_name}: {str(e)}")
             else:
                 st.warning("⚠️ Uno de los archivos no es válido. Por favor, revisa la selección.")
     
