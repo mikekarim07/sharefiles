@@ -10,7 +10,7 @@ SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "TU_ANON_KEY_AQUI")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Nombre del bucket en Supabase
-BUCKET_NAME = "uploads"
+BUCKET_NAME = "mars"
 
 # Título de la app
 st.title("🚀 Subir Archivos Seguros a Supabase")
