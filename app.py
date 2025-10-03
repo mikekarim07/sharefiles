@@ -17,13 +17,23 @@ BUCKET_NAME = "mars"
 st.title("🚀 Subir Archivos Seguros a Supabase")
 st.write("Sube tus archivos aquí (máx. ~40MB). Una vez cargados, verás la lista abajo para confirmar qué se ha subido.")
 
-# Verificar conexión a Supabase
+# Verificar conexión a Supabase y existencia del bucket
 try:
-    # Prueba simple para listar buckets y verificar conexión
-    supabase.storage.list_buckets()
-    st.success("✅ Conexión a Supabase establecida correctamente.")
+    # Listar buckets para verificar conexión
+    buckets = supabase.storage.list_buckets()
+    bucket_exists = any(bucket["name"] == BUCKET_NAME for bucket in buckets)
+    
+    if not bucket_exists:
+        st.error(f"❌ El bucket '{BUCKET_NAME}' no existe en Supabase. Créalo en el dashboard de Supabase o verifica el nombre.")
+        st.markdown(f"[Ir a Supabase Storage](https://supabase.com/dashboard/project/{SUPABASE_URL.split('//')[1].split('.')[0]}/storage/buckets)")
+        st.stop()
+    
+    # Verificar acceso al bucket intentando listar su contenido
+    supabase.storage.from_(BUCKET_NAME).list()
+    st.success(f"✅ Conexión al bucket '{BUCKET_NAME}' establecida correctamente.")
 except Exception as e:
-    st.error(f"❌ Error al conectar con Supabase: {str(e)}. Verifica SUPABASE_URL y SUPABASE_KEY.")
+    st.error(f"❌ Error al conectar con Supabase o al acceder al bucket '{BUCKET_NAME}': {str(e)}. Verifica SUPABASE_URL, SUPABASE_KEY y los permisos del bucket.")
+    st.markdown(f"[Ir a Supabase Storage](https://supabase.com/dashboard/project/{SUPABASE_URL.split('//')[1].split('.')[0]}/storage/buckets)")
     st.stop()
 
 # Widget de upload múltiple
@@ -68,8 +78,8 @@ if uploaded_files:
                     else:
                         try:
                             error_details = res.json()
-                        except json.JSONDecodeError:
-                            error_details = res.text or "No se pudo parsear la respuesta del servidor."
+                        except json.JSONDecodeError as json_err:
+                            error_details = f"No se pudo parsear la respuesta del servidor: {res.text or 'Respuesta vacía'} (JSON Error: {str(json_err)})"
                         st.error(f"❌ Error subiendo {uploaded_file.name}: Código {res.status_code}, Detalles: {error_details}")
                 except Exception as e:
                     st.error(f"❌ Error procesando {uploaded_file.name}: {str(e)}")
@@ -116,7 +126,8 @@ try:
             st.markdown(f"[Descargar desde Supabase Dashboard](https://supabase.com/dashboard/project/{SUPABASE_URL.split('//')[1].split('.')[0]}/storage/buckets/{BUCKET_NAME})")
             
 except Exception as e:
-    st.error(f"Error al listar archivos: {str(e)}. Verifica que el bucket '{BUCKET_NAME}' exista y sea público.")
+    st.error(f"Error al listar archivos: {str(e)}. Verifica los permisos del bucket '{BUCKET_NAME}'.")
+    st.markdown(f"[Ir a Supabase Storage](https://supabase.com/dashboard/project/{SUPABASE_URL.split('//')[1].split('.')[0]}/storage/buckets)")
 
 # Pie de página
 st.markdown("---")
