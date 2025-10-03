@@ -3,6 +3,7 @@ from supabase import create_client, Client
 import os
 from datetime import datetime
 import tempfile
+import json
 
 # Configuración de Supabase (usa secrets en producción)
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", "TU_SUPABASE_URL_AQUI")
@@ -10,11 +11,20 @@ SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "TU_ANON_KEY_AQUI")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Nombre del bucket en Supabase
-BUCKET_NAME = "mars"
+BUCKET_NAME = "uploads"
 
 # Título de la app
 st.title("🚀 Subir Archivos Seguros a Supabase")
 st.write("Sube tus archivos aquí (máx. ~40MB). Una vez cargados, verás la lista abajo para confirmar qué se ha subido.")
+
+# Verificar conexión a Supabase
+try:
+    # Prueba simple para listar buckets y verificar conexión
+    supabase.storage.list_buckets()
+    st.success("✅ Conexión a Supabase establecida correctamente.")
+except Exception as e:
+    st.error(f"❌ Error al conectar con Supabase: {str(e)}. Verifica SUPABASE_URL y SUPABASE_KEY.")
+    st.stop()
 
 # Widget de upload múltiple
 uploaded_files = st.file_uploader(
@@ -28,8 +38,14 @@ uploaded_files = st.file_uploader(
 if uploaded_files:
     with st.spinner("Subiendo archivos a Supabase..."):
         for uploaded_file in uploaded_files:
-            if uploaded_file is not None:  # Verifica que el archivo no sea None
+            if uploaded_file is not None:
                 try:
+                    # Verificar tamaño del archivo (máx 50MB por defecto en Supabase)
+                    file_size_mb = uploaded_file.size / (1024 * 1024)
+                    if file_size_mb > 50:
+                        st.error(f"❌ {uploaded_file.name} excede el límite de 50MB ({file_size_mb:.2f}MB).")
+                        continue
+
                     # Usar directorio temporal seguro
                     with tempfile.NamedTemporaryFile(delete=False, suffix=uploaded_file.name) as tmp_file:
                         tmp_file.write(uploaded_file.getbuffer())
@@ -39,16 +55,22 @@ if uploaded_files:
                     with open(tmp_file_path, "rb") as f:
                         res = supabase.storage.from_(BUCKET_NAME).upload(
                             path=uploaded_file.name,
-                            file=f
+                            file=f,
+                            file_options={"content-type": uploaded_file.type}
                         )
 
                     # Limpiar archivo temporal
                     os.unlink(tmp_file_path)
 
-                    if res.status_code == 200:
+                    # Verificar respuesta
+                    if res.status_code in [200, 201]:
                         st.success(f"✅ {uploaded_file.name} subido correctamente.")
                     else:
-                        st.error(f"❌ Error subiendo {uploaded_file.name}: {res.text}")
+                        try:
+                            error_details = res.json()
+                        except json.JSONDecodeError:
+                            error_details = res.text or "No se pudo parsear la respuesta del servidor."
+                        st.error(f"❌ Error subiendo {uploaded_file.name}: Código {res.status_code}, Detalles: {error_details}")
                 except Exception as e:
                     st.error(f"❌ Error procesando {uploaded_file.name}: {str(e)}")
             else:
