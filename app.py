@@ -1,246 +1,89 @@
-# import streamlit as st
-# from google.oauth2 import service_account
-# from googleapiclient.discovery import build
-# from googleapiclient.http import MediaFileUpload
-# import tempfile
-# import os
-# from googleapiclient.http import MediaIoBaseUpload
-# import io
-
-# # 🟡 Reemplaza esto con el ID de tu carpeta en Google Drive
-# FOLDER_ID = "10ZQjPf5cmva2uUqpSG8QR1uznGVnaL4O"
-
-# # 📡 Conexión con Google Drive usando credenciales en st.secrets
-# @st.cache_resource
-# def get_drive_service():
-#     creds = service_account.Credentials.from_service_account_info(
-#         st.secrets["google_service_account"],
-#         scopes=["https://www.googleapis.com/auth/drive"]
-#     )
-#     return build("drive", "v3", credentials=creds)
-
-# drive_service = get_drive_service()
-
-# # =============================
-# # INTERFAZ DE USUARIO STREAMLIT
-# # =============================
-# st.title("📤 Cargar archivo Excel a Google Drive")
-
-# uploaded_file = st.file_uploader(
-#     "Selecciona un archivo", 
-#     type=["xlsx", "xls", "csv", "txt", "zip"]
-# )
-
-
-# if uploaded_file:
-#     # Crear archivo temporal
-#     with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
-#         tmp.write(uploaded_file.read())
-#         temp_path = tmp.name
-
-#     # Crear metadatos para Drive
-#     file_metadata = {
-#         "name": uploaded_file.name,
-#         "parents": [FOLDER_ID]
-#     }
-
-#     # media = MediaFileUpload(
-#     #     temp_path,
-#     #     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-#     # )
-#     # Modificacion vs lineas anteriores
-#     media = MediaIoBaseUpload(
-#     io.FileIO(temp_path, 'rb'),
-#     mimetype="application/octet-stream",
-#     resumable=True
-#     )
-    
-#     # Subir archivo a Google Drive
-#     uploaded = drive_service.files().create(
-#         body=file_metadata,
-#         media_body=media,
-#         fields="id, webViewLink"
-#     ).execute()
-
-#     # Borrar archivo temporal
-#     os.remove(temp_path)
-
-#     # Mensaje de éxito
-#     st.success("✅ Archivo subido correctamente a Google Drive.")
-#     # st.markdown(f"🔗 [Ver archivo en Drive]({uploaded['webViewLink']})")
-
-
-# ###funcional hasta el primer upload####
-
-# import streamlit as st
-# from google.oauth2 import service_account
-# from googleapiclient.discovery import build
-# from googleapiclient.http import MediaFileUpload
-# import tempfile
-# import os
-
-# # 🟡 Reemplaza esto con el ID de tu carpeta en Google Drive
-# FOLDER_ID = "10ZQjPf5cmva2uUqpSG8QR1uznGVnaL4O"
-
-# # 📡 Conexión con Google Drive usando credenciales en st.secrets
-# @st.cache_resource
-# def get_drive_service():
-#     creds = service_account.Credentials.from_service_account_info(
-#         st.secrets["google_service_account"],
-#         scopes=["https://www.googleapis.com/auth/drive"]
-#     )
-#     return build("drive", "v3", credentials=creds)
-
-# drive_service = get_drive_service()
-
-# # =============================
-# # INTERFAZ DE USUARIO STREAMLIT
-# # =============================
-# st.title("📤 Cargar archivo a Google Drive")
-
-# uploaded_file = st.file_uploader(
-#     "Selecciona un archivo",
-#     type=["xlsx", "xls", "csv", "txt", "zip"]
-# )
-
-# if uploaded_file:
-#     try:
-#         # Crear archivo temporal
-#         with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as tmp:
-#             tmp.write(uploaded_file.read())
-#             temp_path = tmp.name
-
-#         # Metadatos para Drive
-#         file_metadata = {
-#             "name": uploaded_file.name,
-#             "parents": [FOLDER_ID]
-#         }
-
-#         # Preparar archivo para carga
-#         media = MediaFileUpload(
-#             temp_path,
-#             mimetype="application/octet-stream"
-#         )
-
-#         # Subir archivo
-#         uploaded = drive_service.files().create(
-#             body=file_metadata,
-#             media_body=media,
-#             fields="id, webViewLink"
-#         ).execute()
-
-#         # Mostrar resultado
-#         st.success("✅ Archivo subido correctamente a Google Drive.")
-#         st.markdown(f"🔗 [Ver archivo en Drive]({uploaded['webViewLink']})")
-
-#     except Exception as e:
-#         st.error("❌ Ocurrió un error al subir el archivo.")
-#         st.exception(e)
-
-#     finally:
-#         if os.path.exists(temp_path):
-#             os.remove(temp_path)
-
-
-#Alternativa 1 6 Ago 2025
 import streamlit as st
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-import tempfile
+from supabase import create_client, Client
 import os
+from datetime import datetime
 
-# Configuración
-FOLDER_ID = "10ZQjPf5cmva2uUqpSG8QR1uznGVnaL4O"  # ID de la carpeta en tu Drive personal
-SERVICE_ACCOUNT_EMAIL = "streamlit-drive-uploader@mars-463314.iam.gserviceaccount.com"  # Email de tu cuenta de servicio
-USER_EMAIL = "mikekarim07@gmail.com"  # Email del usuario dueño de la carpeta
+# Configuración de Supabase (usa secrets en producción)
+SUPABASE_URL = st.secrets.get("SUPABASE_URL", "TU_SUPABASE_URL_AQUI")
+SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "TU_ANON_KEY_AQUI")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Conexión con Google Drive usando delegación
-@st.cache_resource
-def get_drive_service():
-    creds = service_account.Credentials.from_service_account_info(
-        st.secrets["google_service_account"],
-        scopes=["https://www.googleapis.com/auth/drive"],
-        subject=USER_EMAIL  # Delegación a tu usuario personal
-    )
-    return build("drive", "v3", credentials=creds)
+# Nombre del bucket en Supabase
+BUCKET_NAME = "mars"
 
-drive_service = get_drive_service()
+# Título de la app
+st.title("🚀 Subir Archivos Seguros a Supabase")
+st.write("Sube tus archivos aquí (máx. ~40MB). Una vez cargados, verás la lista abajo para confirmar qué se ha subido.")
 
-# Interfaz de usuario
-st.title("📤 Cargar archivo a Google Drive Personal")
-
-uploaded_file = st.file_uploader(
-    "Selecciona un archivo",
-    type=["xlsx", "xls", "csv", "txt", "zip", "pdf", "docx", "pptx", "jpg", "png"]
+# Widget de upload múltiple (para varios archivos a la vez)
+uploaded_files = st.file_uploader(
+    "Elige archivos para subir",
+    type=["csv", "xlsx", "txt"],  # Ajusta los tipos si necesitas otros
+    accept_multiple_files=False,
 )
 
-if uploaded_file:
-    temp_path = None
-    try:
-        # Crear archivo temporal
-        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as tmp:
-            tmp.write(uploaded_file.getvalue())
-            temp_path = tmp.name
-
-        # Metadatos para Drive
-        file_metadata = {
-            "name": uploaded_file.name,
-            "parents": [FOLDER_ID]
-        }
-
-        # Preparar archivo para carga
-        media = MediaFileUpload(
-            temp_path,
-            mimetype="application/octet-stream",
-            resumable=True
-        )
-
-        # Subir archivo
-        uploaded = drive_service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields="id, webViewLink"
-        ).execute()
-
-        # Mostrar resultado
-        st.success("✅ Archivo subido correctamente a tu Google Drive personal.")
-        st.markdown(f"🔗 [Ver archivo en Drive]({uploaded['webViewLink']})")
-        st.code(f"ID del archivo: {uploaded['id']}")
-
-    except Exception as e:
-        st.error("❌ Ocurrió un error al subir el archivo.")
-        st.error(str(e))
-        if "storageQuotaExceeded" in str(e):
-            st.warning("""
-            ⚠️ Asegúrate de que:
-            1. Tu cuenta personal tiene espacio disponible
-            2. La carpeta destino existe
-            3. La cuenta de servicio tiene permisos delegados
-            """)
-
-    finally:
-        # Limpieza del archivo temporal
-        if temp_path and os.path.exists(temp_path):
-            os.remove(temp_path)
-
-# Información adicional
-with st.expander("ℹ️ Configuración necesaria previa"):
-    st.markdown("""
-    **Para que esta solución funcione necesitas:**
-
-    1. **Habilitar la delegación domain-wide**:
-       - Ve a la [Consola de Admin de Google Workspace](https://admin.google.com)
-       - Navega a: Seguridad > API Controls > Domain-wide Delegation
-       - Añade una nueva delegación con:
-         - Client ID: (de tu cuenta de servicio)
-         - Scopes: `https://www.googleapis.com/auth/drive`
+# Subir archivos si hay uploads
+if uploaded_files:
+    with st.spinner("Subiendo archivos a Supabase..."):
+        for uploaded_file in uploaded_files:
+            # Guardar archivo temporalmente
+            file_path = f"/tmp/{uploaded_file.name}"
+            with open(file_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            
+            # Subir a Supabase Storage
+            with open(file_path, "rb") as f:
+                res = supabase.storage.from_(BUCKET_NAME).upload(
+                    path=uploaded_file.name,  # Nombre del archivo en el bucket
+                    file=f
+                )
+            
+            # Limpiar archivo temporal
+            os.remove(file_path)
+            
+            if res.status_code == 200:
+                st.success(f"✅ {uploaded_file.name} subido correctamente.")
+            else:
+                st.error(f"❌ Error subiendo {uploaded_file.name}: {res.text}")
     
-    2. **Compartir la carpeta**:
-       - Comparte tu carpeta personal (la que tiene el FOLDER_ID) con el email de tu cuenta de servicio
-       - Dale permisos de "Editor" a la cuenta de servicio
+    st.rerun()  # Recarga la página para actualizar la lista
+
+# Listar archivos en el bucket
+st.subheader("📁 Archivos Subidos")
+try:
+    # Obtener lista de archivos del bucket
+    files = supabase.storage.from_(BUCKET_NAME).list()
     
-    3. **Verificar el subject email**:
-       - El `USER_EMAIL` debe ser exactamente el email del dueño de la carpeta
-       - Debe ser un email del mismo dominio de Google Workspace
-    """)
+    if not files:
+        st.info("Aún no hay archivos subidos. ¡Sube el primero!")
+    else:
+        # Preparar datos para la tabla
+        file_data = []
+        for file_info in files:
+            if file_info['name'] != '.gitkeep':  # Ignora archivos dummy si los hay
+                # Obtener metadata del archivo
+                metadata = supabase.storage.from_(BUCKET_NAME).download(file_info['name'])
+                size_mb = len(metadata) / (1024 * 1024)  # Tamaño en MB
+                created_at = datetime.fromisoformat(file_info.get('created_at', '1970-01-01T00:00:00Z').replace('Z', '+00:00'))
+                
+                file_data.append({
+                    'Nombre': file_info['name'],
+                    'Tamaño (MB)': f"{size_mb:.2f}",
+                    'Fecha de Carga': created_at.strftime("%d/%m/%Y %H:%M")
+                })
+        
+        # Mostrar en tabla
+        st.table(file_data)
+        
+        # Botón para descargar todos (opcional, para ti)
+        if st.button("📥 Descargar Todos los Archivos (para el admin)"):
+            st.warning("En producción, usa el dashboard de Supabase para descargar. Este botón es solo un ejemplo.")
+            # Aquí podrías agregar lógica para generar un ZIP, pero para simplicidad, redirige al dashboard
+            st.markdown(f"[Descargar desde Supabase Dashboard](https://supabase.com/dashboard/project/{SUPABASE_URL.split('//')[1].split('.')[0]}/storage/buckets/{BUCKET_NAME})")
+            
+except Exception as e:
+    st.error(f"Error al listar archivos: {str(e)}. Verifica que el bucket '{BUCKET_NAME}' exista y sea público.")
+
+# Pie de página
+st.markdown("---")
+st.caption("App creada con ❤️ por Grok. Contacta si necesitas ajustes.")
