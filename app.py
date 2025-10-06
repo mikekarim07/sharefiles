@@ -28,16 +28,18 @@ def get_files(bucket: str):
 
 def upload_file(bucket: str, file):
     try:
-        file_data = BytesIO(file.getvalue())
+        # Obtener bytes directamente del archivo cargado en Streamlit
+        file_bytes = file.getvalue()
         supabase.storage.from_(bucket).upload(
-            file.name,
-            file_data,
+            path=file.name,
+            file=file_bytes,
             file_options={"cache-control": "3600", "upsert": "false"},
         )
         return True
     except Exception as e:
         st.error(f"Error al subir archivo: {e}")
         return False
+
 
 # --- UI STREAMLIT ---
 st.title("📦 Gestor de archivos en Supabase")
