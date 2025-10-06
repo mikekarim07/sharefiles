@@ -1,153 +1,71 @@
+# app.py
 import streamlit as st
 from supabase import create_client, Client
-import os
-from datetime import datetime
-import tempfile
-import json
+from io import BytesIO
 
-# Configuración de Supabase (usa secrets en producción)
-SUPABASE_URL = st.secrets.get("SUPABASE_URL", "TU_SUPABASE_URL_AQUI")
-SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "TU_ANON_KEY_AQUI")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# --- CONFIGURACIÓN SUPABASE ---
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
-# Nombre del bucket en Supabase (sanitizado)
-BUCKET_NAME = "uploads".strip().lower()  # Asegura que sea 'uploads' sin espacios ni mayúsculas
+@st.cache_resource
+def init_supabase() -> Client:
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Título de la app
-st.title("🚀 Subir Archivos Seguros a Supabase")
-st.write("Sube tus archivos aquí (máx. ~40MB). Una vez cargados, verás la lista abajo para confirmar qué se ha subido.")
+supabase = init_supabase()
 
-# Verificar conexión a Supabase y listar buckets disponibles
-try:
-    # Listar buckets con más depuración
-    st.write("🔍 Verificando buckets disponibles...")
-    buckets = supabase.storage.list_buckets()
-    bucket_names = [bucket["name"].strip().lower() for bucket in buckets]
-    
-    st.write(f"🪣 Buckets encontrados: {', '.join(bucket_names) if bucket_names else 'Ninguno'}")
-    
-    if not bucket_names:
-        st.error("❌ No se encontraron buckets en Supabase. Crea un bucket en el dashboard.")
-        st.markdown(f"[Ir a Supabase Storage](https://supabase.com/dashboard/project/{SUPABASE_URL.split('//')[1].split('.')[0]}/storage/buckets)")
-        st.stop()
-    
-    # Verificar si el bucket 'uploads' existe
-    if BUCKET_NAME not in bucket_names:
-        st.error(f"❌ El bucket '{BUCKET_NAME}' no está en la lista de buckets disponibles: {', '.join(bucket_names)}")
-        st.write("Por favor, crea el bucket 'uploads' en Supabase o usa uno de los buckets existentes.")
-        st.markdown(f"[Ir a Supabase Storage](https://supabase.com/dashboard/project/{SUPABASE_URL.split('//')[1].split('.')[0]}/storage/buckets)")
-        st.stop()
-    
-    # Verificar acceso al bucket intentando listar su contenido
+# --- FUNCIONES ---
+def get_buckets():
+    response = supabase.storage.list_buckets()
+    return [b["name"] for b in response]
+
+def get_files(bucket: str):
     try:
-        supabase.storage.from_(BUCKET_NAME).list()
-        st.success(f"✅ Conexión al bucket '{BUCKET_NAME}' establecida correctamente.")
+        response = supabase.storage.from_(bucket).list()
+        return [f["name"] for f in response]
+    except Exception:
+        return []
+
+def upload_file(bucket: str, file):
+    try:
+        file_data = BytesIO(file.getvalue())
+        supabase.storage.from_(bucket).upload(
+            file.name,
+            file_data,
+            file_options={"cache-control": "3600", "upsert": "false"},
+        )
+        return True
     except Exception as e:
-        st.error(f"❌ Error al acceder al bucket '{BUCKET_NAME}': {str(e)}. Verifica los permisos del bucket.")
-        st.markdown(f"[Ir a Supabase Storage](https://supabase.com/dashboard/project/{SUPABASE_URL.split('//')[1].split('.')[0]}/storage/buckets)")
-        st.stop()
+        st.error(f"Error al subir archivo: {e}")
+        return False
 
-except Exception as e:
-    st.error(f"❌ Error al conectar con Supabase: {str(e)}. Verifica SUPABASE_URL y SUPABASE_KEY.")
-    st.markdown(f"[Ir a Supabase Storage](https://supabase.com/dashboard/project/{SUPABASE_URL.split('//')[1].split('.')[0]}/storage/buckets)")
-    st.stop()
+# --- UI STREAMLIT ---
+st.title("📦 Gestor de archivos en Supabase")
 
-# Widget de upload múltiple
-uploaded_files = st.file_uploader(
-    "Elige archivos para subir",
-    type=["pdf", "docx", "xlsx", "txt", "jpg", "png"],
-    accept_multiple_files=True,
-    help="Archivos entre 20-40MB. Puedes subir varios a la vez."
-)
+# Guardar bucket seleccionado en session_state
+if "bucket" not in st.session_state:
+    st.session_state["bucket"] = None
 
-# Subir archivos si hay uploads
-if uploaded_files:
-    with st.spinner("Subiendo archivos a Supabase..."):
-        for uploaded_file in uploaded_files:
-            if uploaded_file is not None:
-                try:
-                    # Verificar tamaño del archivo (máx 50MB por defecto en Supabase)
-                    file_size_mb = uploaded_file.size / (1024 * 1024)
-                    if file_size_mb > 50:
-                        st.error(f"❌ {uploaded_file.name} excede el límite de 50MB ({file_size_mb:.2f}MB).")
-                        continue
+# 1. Mostrar buckets
+buckets = get_buckets()
+selected_bucket = st.selectbox("Selecciona un bucket:", buckets, index=buckets.index(st.session_state["bucket"]) if st.session_state["bucket"] in buckets else 0)
+st.session_state["bucket"] = selected_bucket
 
-                    # Sanitizar nombre del archivo
-                    safe_file_name = uploaded_file.name.replace(" ", "_").replace("%", "_").replace("&", "_")
-                    
-                    # Usar directorio temporal seguro
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=safe_file_name) as tmp_file:
-                        tmp_file.write(uploaded_file.getbuffer())
-                        tmp_file_path = tmp_file.name
+# 2. Mostrar lista de archivos
+st.subheader(f"Archivos en: {selected_bucket}")
+files = get_files(selected_bucket)
+if files:
+    st.write(files)
+else:
+    st.info("No hay archivos en este bucket.")
 
-                    # Subir a Supabase Storage
-                    with open(tmp_file_path, "rb") as f:
-                        res = supabase.storage.from_(BUCKET_NAME).upload(
-                            path=safe_file_name,
-                            file=f,
-                            file_options={"content-type": uploaded_file.type}
-                        )
+# 3. Subir archivo
+st.subheader("Subir nuevo archivo")
+uploaded_file = st.file_uploader("Selecciona un archivo para subir", type=None)
 
-                    # Limpiar archivo temporal
-                    os.unlink(tmp_file_path)
+if uploaded_file:
+    if st.button("Guardar archivo en Supabase"):
+        with st.spinner("Subiendo archivo..."):
+            if upload_file(selected_bucket, uploaded_file):
+                st.success(f"✅ Archivo '{uploaded_file.name}' subido correctamente.")
+                st.rerun()  # Recargar para ver nueva lista
 
-                    # Verificar respuesta
-                    if res.status_code in [200, 201]:
-                        st.success(f"✅ {safe_file_name} subido correctamente.")
-                    else:
-                        try:
-                            error_details = res.json()
-                        except json.JSONDecodeError as json_err:
-                            error_details = f"No se pudo parsear la respuesta del servidor: {res.text or 'Respuesta vacía'} (JSON Error: {str(json_err)})"
-                        st.error(f"❌ Error subiendo {safe_file_name}: Código {res.status_code}, Detalles: {error_details}")
-                except Exception as e:
-                    st.error(f"❌ Error procesando {safe_file_name}: {str(e)}")
-            else:
-                st.warning("⚠️ Uno de los archivos no es válido. Por favor, revisa la selección.")
-    
-    st.rerun()  # Recarga para actualizar la lista
-
-# Listar archivos en el bucket
-st.subheader("📁 Archivos Subidos")
-try:
-    files = supabase.storage.from_(BUCKET_NAME).list()
-    
-    if not files:
-        st.info("Aún no hay archivos subidos. ¡Sube el primero!")
-    else:
-        file_data = []
-        for file_info in files:
-            if file_info.get('name') and file_info['name'] != '.gitkeep':
-                try:
-                    # Obtener metadata del archivo
-                    metadata = supabase.storage.from_(BUCKET_NAME).download(file_info['name'])
-                    size_mb = len(metadata) / (1024 * 1024)
-                    created_at = datetime.fromisoformat(
-                        file_info.get('created_at', '1970-01-01T00:00:00Z').replace('Z', '+00:00')
-                    )
-                    
-                    file_data.append({
-                        'Nombre': file_info['name'],
-                        'Tamaño (MB)': f"{size_mb:.2f}",
-                        'Fecha de Carga': created_at.strftime("%d/%m/%Y %H:%M")
-                    })
-                except Exception as e:
-                    st.warning(f"⚠️ No se pudo obtener info de {file_info['name']}: {str(e)}")
-        
-        if file_data:
-            st.table(file_data)
-        else:
-            st.info("No hay archivos válidos para mostrar.")
-            
-        # Botón para descargar todos (admin)
-        if st.button("📥 Descargar Todos los Archivos (para el admin)"):
-            st.warning("En producción, usa el dashboard de Supabase para descargar.")
-            st.markdown(f"[Descargar desde Supabase Dashboard](https://supabase.com/dashboard/project/{SUPABASE_URL.split('//')[1].split('.')[0]}/storage/buckets/{BUCKET_NAME})")
-            
-except Exception as e:
-    st.error(f"Error al listar archivos: {str(e)}. Verifica los permisos del bucket '{BUCKET_NAME}'.")
-    st.markdown(f"[Ir a Supabase Storage](https://supabase.com/dashboard/project/{SUPABASE_URL.split('//')[1].split('.')[0]}/storage/buckets)")
-
-# Pie de página
-st.markdown("---")
-st.caption("App creada con ❤️ por Grok. Contacta si necesitas ajustes.")
