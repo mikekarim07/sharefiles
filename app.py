@@ -42,7 +42,7 @@ def upload_file(bucket: str, file):
 
 
 # --- UI STREAMLIT ---
-st.title("📦 Gestor de archivos en Supabase")
+st.title("📦 Archivos a compartir")
 
 # Guardar bucket seleccionado en session_state
 if "bucket" not in st.session_state:
@@ -59,14 +59,14 @@ files = get_files(selected_bucket)
 if files:
     st.write(files)
 else:
-    st.info("No hay archivos en este bucket.")
+    st.info("No hay archivos en esta carpeta.")
 
 # 3. Subir archivo
 st.subheader("Subir nuevo archivo")
 uploaded_file = st.file_uploader("Selecciona un archivo para subir", type=None)
 
 if uploaded_file:
-    if st.button("Guardar archivo en Supabase"):
+    if st.button("Guardar archivo en carpeta"):
         with st.spinner("Subiendo archivo..."):
             if upload_file(selected_bucket, uploaded_file):
                 st.success(f"✅ Archivo '{uploaded_file.name}' subido correctamente.")
