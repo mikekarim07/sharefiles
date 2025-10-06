@@ -16,7 +16,8 @@ supabase = init_supabase()
 # --- FUNCIONES ---
 def get_buckets():
     response = supabase.storage.list_buckets()
-    return [b["name"] for b in response]
+    return [b.name for b in response]
+
 
 def get_files(bucket: str):
     try:
