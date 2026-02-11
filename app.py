@@ -6,8 +6,27 @@ from io import BytesIO
 # --- CONFIGURACIÓN SUPABASE ---
 # SUPABASE_URL = st.secrets["SUPABASE_URL"]
 # SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-SUPABASE_URL = st.secrets.get("SUPABASE_URL") or os.getenv("SUPABASE_URL")
-SUPABASE_KEY = st.secrets.get("SUPABASE_KEY") or os.getenv("SUPABASE_KEY")
+
+# SUPABASE_URL = st.secrets.get("SUPABASE_URL") or os.getenv("SUPABASE_URL")
+# SUPABASE_KEY = st.secrets.get("SUPABASE_KEY") or os.getenv("SUPABASE_KEY")
+
+
+def get_secret(key):
+    # 1️⃣ Intentar leer variable de entorno (Railway)
+    value = os.getenv(key)
+    if value:
+        return value
+    
+    # 2️⃣ Intentar leer st.secrets (Streamlit Cloud)
+    try:
+        return st.secrets[key]
+    except Exception:
+        return None
+
+SUPABASE_URL = get_secret("SUPABASE_URL")
+SUPABASE_KEY = get_secret("SUPABASE_KEY")
+
+
 
 
 
